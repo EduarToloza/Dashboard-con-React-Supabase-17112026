@@ -1,17 +1,61 @@
+
+import { useEffect, useState } from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { supabase } from './supabase'
+import Login from './componentes/login'
+import Registro from './componentes/registro'
+import Perfil from './componentes/perfil'
+import Dashboard from './componentes/dashboard'
+
 function App() {
+  const [usuario, setUsuario] = useState(null)
+  const [cargando, setCargando] = useState(true)
+
+  useEffect(() => {
+    // 1. Comprobar si ya había una sesión abierta
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUsuario(session?.user ?? null)
+      setCargando(false)
+    })
+
+    // 2. Detectar cuándo un usuario inicia o cierra sesión
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_evento, session) => setUsuario(session?.user ?? null)
+    )
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  if (cargando) return <p>Cargando...</p>
+
+  // Las rutas privadas requieren una sesión activa
+  const privada = (componente) => (
+    usuario ? componente : <Navigate to="/login" />
+  )
+
   return (
-    <div className="container py-5">
-      <div className="card shadow-sm">
-        <div className="card-body text-center">
-          <h1 className="text-primary">
-            Dashboard React + Supabase
-          </h1>
-          <p className="text-muted">
-            Proyecto académico en desarrollo
-          </p>
-        </div>
-      </div>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route
+          path="/login"
+          element={usuario ? <Navigate to="/perfil" /> : <Login />}
+        />
+
+        <Route path="/registro" element={<Registro />} />
+
+        <Route
+          path="/perfil"
+          element={privada(<Perfil />)}
+        />
+
+        <Route
+          path="/dashboard"
+          element={privada(<Dashboard />)}
+        />
+
+        <Route path="*" element={<Navigate to="/perfil" />} />
+      </Routes>
+    </BrowserRouter>
   )
 }
 
